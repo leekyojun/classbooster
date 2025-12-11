@@ -65,36 +65,21 @@
 
 <iframe id="content-frame" class="main-frame" src="home.html"></iframe>
 
-<script>
-    const DB_KEY = 'yoons_v3_2_db';
-    
-    // DB 초기화 함수 (데이터가 없을 때만 실행)
-    function initDB() {
-        if (!localStorage.getItem(DB_KEY)) {
-            const initialData = {
-                students: [
-                    { id: 'S1', name: '김민준', grade: '중1' }, { id: 'S2', name: '이서연', grade: '초6' }
-                ],
-                assignments: [
-                    // 샘플 데이터: 완료 1건, 제출(채점대기) 1건, 미제출 1건
-                    { id: 1, title: 'Ch.1 단어 시험', type: 'Exam', student: '김민준', date: '2025-12-04', status: 'done', score: 95 },
-                    { id: 2, title: 'My Favorite Season', type: 'Writing', student: '이서연', date: '2025-12-10', status: 'submitted', content: "My favorite season is Winter. Because I like snow." },
-                    { id: 3, title: 'Self Introduction', type: 'Speaking', student: '김민준', date: '2025-12-10', status: 'missing', audioUrl: null }
-                ]
-            };
-            localStorage.setItem(DB_KEY, JSON.stringify(initialData));
-            console.log('DB Initialized');
-        }
-    }
+<script type="module">
+    // 1. Firebase Config 및 초기화 스크립트 Import
+    import { initializeDatabase } from "./init-data.js";
+    // (기타 firebase 관련 전역 객체는 firebase-config.js에서 window에 할당됨)
 
-    function loadModule(url, el) {
+    const DB_KEY = 'yoons_v3_2_db'; // 레거시 코드 (삭제 예정)
+
+    // 모듈 로드 함수 (기존 로직 유지)
+    window.loadModule = function(url, el) {
         document.getElementById('content-frame').src = url;
         document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         if(el) el.classList.add('active');
     }
 
-    // 모듈 간 이동 헬퍼 함수
-    // targetTab 파라미터 추가: 해당 페이지 내 특정 탭으로 이동 (예: output.html#feedback)
+    // 모듈 이동 헬퍼 (기존 로직 유지)
     window.moveToModule = function(moduleName, targetTab) {
         const urlMap = {
             'home': 'home.html',
@@ -105,12 +90,17 @@
         
         let url = urlMap[moduleName];
         if(url) {
-            if(targetTab) url += '#' + targetTab; // 해시태그 추가
+            if(targetTab) url += '#' + targetTab;
             loadModule(url, document.getElementById('nav-' + moduleName));
         }
     }
 
-    initDB();
+    // [New] 실제 DB 초기화 실행 (최초 1회 실행 후 주석 처리해도 됨)
+    // 페이지 로드 시 DB 상태를 체크하고 없으면 생성
+    initializeDatabase().then(() => {
+        console.log("System Ready.");
+    });
 </script>
+
 </body>
 </html>
