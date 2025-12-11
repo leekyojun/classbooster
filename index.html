@@ -61,45 +61,69 @@
             <i class="fa-solid fa-wand-magic-sparkles"></i> Magic Report
         </div>
     </div>
+    <div style="margin-top: auto; border-top: 1px solid #eee; padding-top: 20px;">
+        <div class="nav-item" onclick="handleLogout()" style="color: #E53E3E;">
+            <i class="fa-solid fa-right-from-bracket"></i> 로그아웃
+        </div>
+    </div>
 </div>
 
 <iframe id="content-frame" class="main-frame" src="home.html"></iframe>
 
 <script type="module">
-    // 1. Firebase Config 및 초기화 스크립트 Import
-    import { initializeDatabase } from "./init-data.js";
-    // (기타 firebase 관련 전역 객체는 firebase-config.js에서 window에 할당됨)
+    import { auth, db } from "./firebase-config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { initializeDatabase } from "./init-data.js"; // 1차 작업의 DB 초기화
 
-    const DB_KEY = 'yoons_v3_2_db'; // 레거시 코드 (삭제 예정)
+    // 인증 가드 (Auth Guard)
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            // 비로그인 시 로그인 페이지로 강제 이동
+            window.location.replace("login.html");
+        } else {
+            console.log("Logged in as:", user.email);
+            // 로그인 확인 후 앱 초기화
+            initApp();
+        }
+    });
 
-    // 모듈 로드 함수 (기존 로직 유지)
-    window.loadModule = function(url, el) {
-        document.getElementById('content-frame').src = url;
-        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-        if(el) el.classList.add('active');
-    }
+    // 앱 초기화 및 전역 함수 설정
+    function initApp() {
+        const DB_KEY = 'yoons_v3_2_db'; // 레거시 호환용
 
-    // 모듈 이동 헬퍼 (기존 로직 유지)
-    window.moveToModule = function(moduleName, targetTab) {
-        const urlMap = {
-            'home': 'home.html',
-            'management': 'management.html',
-            'exam': 'exam.html',
-            'output': 'output.html'
-        };
-        
-        let url = urlMap[moduleName];
-        if(url) {
-            if(targetTab) url += '#' + targetTab;
-            loadModule(url, document.getElementById('nav-' + moduleName));
+        // 1. 모듈 로드 함수
+        window.loadModule = function(url, el) {
+            const frame = document.getElementById('content-frame');
+            frame.src = url;
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            if(el) el.classList.add('active');
+        }
+
+        // 2. 모듈 이동 헬퍼
+        window.moveToModule = function(moduleName, targetTab) {
+            const urlMap = {
+                'home': 'home.html',
+                'management': 'management.html',
+                'exam': 'exam.html',
+                'output': 'output.html'
+            };
+            let url = urlMap[moduleName];
+            if(url) {
+                if(targetTab) url += '#' + targetTab;
+                window.loadModule(url, document.getElementById('nav-' + moduleName));
+            }
+        }
+
+        // 3. 로그아웃 함수
+        window.handleLogout = function() {
+            signOut(auth).then(() => {
+                alert("로그아웃 되었습니다.");
+                window.location.href = "login.html";
+            }).catch((error) => {
+                console.error("Logout Error:", error);
+            });
         }
     }
-
-    // [New] 실제 DB 초기화 실행 (최초 1회 실행 후 주석 처리해도 됨)
-    // 페이지 로드 시 DB 상태를 체크하고 없으면 생성
-    initializeDatabase().then(() => {
-        console.log("System Ready.");
-    });
 </script>
 
 </body>

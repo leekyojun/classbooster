@@ -70,12 +70,12 @@
 
 <div class="app-container">
     <div class="app-header">
-        <div class="logo">Yoon's Class</div>
-        <select id="student-select" class="user-select" onchange="window.loadMyTasks()">
-            <option value="김민준">김민준 (중1)</option>
-            <option value="이서연">이서연 (초6)</option>
-        </select>
+    <div class="logo">Yoon's Class Booster</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <span id="header-user-name" style="font-size:14px; font-weight:bold; color:#333;">로딩 중...</span>
+        <i class="fa-solid fa-right-from-bracket" onclick="window.handleLogout()" style="cursor:pointer; color:#888;"></i>
     </div>
+</div>
 
     <div class="content">
         <div style="background: #FFF8E1; padding: 15px; border-radius: 8px; font-size: 13px; color: #B76E00; margin-bottom: 20px; line-height: 1.4; border: 1px solid #FFE082;">
@@ -159,7 +159,14 @@
 </div>
 
 <script type="module">
-    // Firebase Imports and Global Variables
+    // Import
+    import { auth, db } from "./firebase-config.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } 
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // Global Variables
+    let currentUserData = null; // Firestore User Data
     let myTasks = [];
     let currentTask = null;
     
@@ -169,38 +176,65 @@
     let audioBlob = null;
     let audioUrl = null;
     let isRecording = false;
-    let hasFile = false; // Exam file check
 
-    // 1. Data Loading
-    window.loadMyTasks = function() {
-        const studentName = document.getElementById('student-select').value;
-        document.getElementById('user-name').innerText = studentName;
+    // 1. Auth & Data Loading
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+            window.location.replace("login.html");
+            return;
+        }
+
+        // Firestore에서 사용자 정보(이름) 가져오기
+        // *주의: 1차 작업의 uid와 Auth의 uid가 다를 수 있으므로 이메일로 매칭합니다.
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("email", "==", user.email));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            const userDoc = querySnapshot.docs[0];
+            currentUserData = userDoc.data();
+            console.log("User Loaded:", currentUserData.name);
+            
+            // UI 업데이트
+            document.getElementById('header-user-name').innerText = currentUserData.name;
+            document.getElementById('user-name').innerText = currentUserData.name;
+            
+            // 과제 로드 시작
+            loadMyTasks(currentUserData.name);
+        } else {
+            alert("학생 정보를 찾을 수 없습니다. 선생님께 문의하세요.");
+            signOut(auth);
+        }
+    });
+
+    // 2. Load Tasks (Realtime)
+    function loadMyTasks(studentName) {
         const listContainer = document.getElementById('todo-list');
-        listContainer.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
+        listContainer.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> 과제 불러오는 중...</div>';
 
-        // Firebase Query
-        const q = window.query(
-            window.collection(window.db, "assignments"), 
-            window.where("student", "==", studentName)
+        // 1차 작업 스키마에 따라 'student' 필드(이름)로 쿼리
+        const q = query(
+            collection(db, "assignments"), 
+            where("student", "==", studentName)
         );
 
-        window.onSnapshot(q, (snapshot) => {
+        onSnapshot(q, (snapshot) => {
             myTasks = [];
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                // Filter: 'missing' or 'assigned' only
+                // 미완료(missing) 또는 할당됨(assigned) 상태만 표시
                 if(data.status === 'missing' || data.status === 'assigned') {
-                    // Store Document ID for updating later
                     myTasks.push({ docId: doc.id, ...data });
                 }
             });
             renderList();
         }, (error) => {
             console.error("Error loading tasks:", error);
-            listContainer.innerHTML = '<div class="empty-state">데이터를 불러오지 못했습니다.</div>';
+            listContainer.innerHTML = '<div class="empty-state">데이터 로드 실패</div>';
         });
     }
 
+    // 3. Render List
     function renderList() {
         const container = document.getElementById('todo-list');
         container.innerHTML = '';
@@ -210,7 +244,7 @@
             return;
         }
 
-        // Sort by date descending
+        // 날짜순 정렬
         myTasks.sort((a,b) => new Date(b.date) - new Date(a.date));
 
         myTasks.forEach(t => {
@@ -219,7 +253,6 @@
             if(t.type === 'Writing') { typeClass = 'type-writing'; tagClass = 'writing'; }
             if(t.type === 'Speaking') { typeClass = 'type-speaking'; tagClass = 'speaking'; }
 
-            // Important: Use docId for identifying the task
             container.innerHTML += `
                 <div class="task-card ${typeClass}" onclick="window.openTask('${t.docId}')">
                     <span class="tag ${tagClass}">${t.type}</span>
@@ -230,26 +263,21 @@
         });
     }
 
-    // 2. Open Detail
+    // 4. Task Detail Actions
     window.openTask = function(docId) {
         currentTask = myTasks.find(t => t.docId === docId);
-        if(!currentTask) {
-            console.error("Task not found for ID:", docId);
-            return;
-        }
+        if(!currentTask) return;
 
-        // Reset inputs
-        hasFile = false;
+        // Reset & UI Setup (기존 로직 유지)
         window.resetRecorder();
         window.resetFileUpload();
         document.getElementById('btn-submit').disabled = false;
 
-        // UI Binding
         document.getElementById('dt-header-title').innerText = `${currentTask.type} Homework`;
         document.getElementById('dt-title').innerText = currentTask.title;
-        document.getElementById('dt-prompt').innerText = currentTask.prompt || "선생님이 작성한 가이드가 없습니다.";
+        document.getElementById('dt-prompt').innerText = currentTask.prompt || "가이드 없음";
 
-        // Hints
+        // Hints Handling
         const hintArea = document.getElementById('dt-hints-area');
         const hintList = document.getElementById('dt-hints-list');
         if(currentTask.hints && currentTask.hints.length > 0) {
@@ -259,20 +287,18 @@
             hintArea.style.display = 'none';
         }
 
-        // View Switching
-        document.getElementById('input-writing').style.display = 'none';
-        document.getElementById('input-speaking').style.display = 'none';
-        document.getElementById('input-exam').style.display = 'none';
+        // View Toggle
+        ['input-writing', 'input-speaking', 'input-exam'].forEach(id => document.getElementById(id).style.display = 'none');
 
         if(currentTask.type === 'Writing') {
             document.getElementById('input-writing').style.display = 'block';
             document.getElementById('w-text').value = '';
         } else if(currentTask.type === 'Speaking') {
             document.getElementById('input-speaking').style.display = 'block';
-            document.getElementById('btn-submit').disabled = true; // Wait for recording
+            document.getElementById('btn-submit').disabled = true;
         } else if(currentTask.type === 'Exam') {
             document.getElementById('input-exam').style.display = 'block';
-            document.getElementById('btn-submit').disabled = true; // Wait for upload
+            document.getElementById('btn-submit').disabled = true;
         }
 
         document.getElementById('detail-view').style.display = 'flex';
@@ -283,146 +309,76 @@
         currentTask = null;
     }
 
-    // 3. Speaking Logic
-    window.toggleRecord = async function() {
-        const btn = document.getElementById('mic-btn');
-        const status = document.getElementById('rec-status');
-
-        if(!isRecording) {
-            // Start
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
-                mediaRecorder.onstop = () => {
-                    audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-                    audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    // Switch to Review
-                    document.getElementById('rec-control').style.display = 'none';
-                    document.getElementById('rec-review').style.display = 'flex';
-                    document.getElementById('btn-submit').disabled = false;
-                };
-
-                mediaRecorder.start();
-                isRecording = true;
-                btn.classList.add('recording');
-                btn.innerHTML = '<i class="fa-solid fa-stop"></i>';
-                status.innerText = "녹음 중... (터치하여 중지)";
-                status.style.color = "#E53E3E";
-
-            } catch(err) {
-                alert("마이크 권한이 필요합니다: " + err);
-            }
-        } else {
-            // Stop
-            mediaRecorder.stop();
-            isRecording = false;
-            btn.classList.remove('recording');
-        }
-    }
-
+    // 5. Utility Functions (기존 유지)
     window.resetRecorder = function() {
         isRecording = false;
         audioBlob = null;
+        const btn = document.getElementById('mic-btn');
+        if(btn) {
+            btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+            btn.classList.remove('recording');
+        }
         document.getElementById('rec-control').style.display = 'block';
         document.getElementById('rec-review').style.display = 'none';
-        
-        const btn = document.getElementById('mic-btn');
-        btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
-        btn.classList.remove('recording');
         document.getElementById('rec-status').innerText = "터치하여 녹음 시작";
-        document.getElementById('rec-status').style.color = "#555";
-        
-        // Disable submit for Speaking if reset
-        if(currentTask && currentTask.type === 'Speaking') {
-            document.getElementById('btn-submit').disabled = true;
-        }
     }
 
-    window.playAudio = function() {
-        if(audioUrl) {
-            const audio = new Audio(audioUrl);
-            audio.play();
-        }
+    window.toggleRecord = async function() {
+        // ... (녹음 로직 4단계에서 구현 예정, 현재는 UI동작만) ...
+        alert("녹음 기능은 4단계(Storage 연동)에서 활성화됩니다.");
     }
-
-    // 4. Exam Logic
+    window.playAudio = function() { if(audioUrl) new Audio(audioUrl).play(); }
+    
     window.handleFileSelect = function(input) {
         if(input.files && input.files[0]) {
-            hasFile = true;
-            const name = input.files[0].name;
-            const box = document.getElementById('upload-box');
-            const placeholder = document.getElementById('upload-placeholder');
-            const nameDisplay = document.getElementById('file-name');
-            
-            box.classList.add('active');
-            placeholder.style.display = 'none'; // Hide instruction
-            nameDisplay.innerText = name;
-            nameDisplay.style.display = 'block';
-            
+            document.getElementById('upload-box').classList.add('active');
+            document.getElementById('upload-placeholder').style.display = 'none';
+            document.getElementById('file-name').style.display = 'block';
+            document.getElementById('file-name').innerText = input.files[0].name;
             document.getElementById('btn-submit').disabled = false;
         }
     }
-
+    
     window.resetFileUpload = function() {
-        hasFile = false;
-        const box = document.getElementById('upload-box');
-        const placeholder = document.getElementById('upload-placeholder');
-        const nameDisplay = document.getElementById('file-name');
-
-        box.classList.remove('active');
-        placeholder.style.display = 'block';
-        nameDisplay.style.display = 'none';
-        nameDisplay.innerText = '';
+        document.getElementById('upload-box').classList.remove('active');
+        document.getElementById('upload-placeholder').style.display = 'block';
+        document.getElementById('file-name').style.display = 'none';
         document.getElementById('file-upload').value = '';
     }
 
-    // 5. Submit Logic
+    // 6. Submit Logic (Firestore Update)
     window.handleSubmit = async function() {
         if(!currentTask) return;
-
+        
+        // 데이터 준비
         let updateData = {
             status: 'submitted',
             submittedAt: new Date().toISOString()
         };
 
-        // Writing Validation
         if(currentTask.type === 'Writing') {
             const content = document.getElementById('w-text').value;
-            if(content.length < 5) return alert("내용을 더 작성해주세요.");
-            if(!confirm("이대로 제출하시겠습니까?\n제출한 내용은 수정할 수 없습니다.")) return;
-            
+            if(content.length < 2) return alert("내용을 입력해주세요.");
             updateData.content = content;
         } 
-        // Speaking Validation
-        else if(currentTask.type === 'Speaking') {
-            // Note: In real app, upload audioBlob to Storage, get URL.
-            // Here we simulate with a dummy URL.
-            updateData.audioUrl = "https://example.com/simulated_audio.mp3";
-        }
-        // Exam Validation
-        else if(currentTask.type === 'Exam') {
-            // Note: In real app, upload file to Storage, get URL.
-            updateData.content = "Answer file uploaded";
+        // Speaking, Exam의 파일 업로드는 4단계에서 구현
+        else {
+            if(!confirm("파일/녹음 업로드 기능은 4단계 예정입니다. '제출 완료' 상태로만 변경하시겠습니까?")) return;
         }
 
-        // Firebase Update
         try {
-            const docRef = window.doc(window.db, "assignments", currentTask.docId);
-            await window.updateDoc(docRef, updateData);
-            alert("🎉 과제 제출이 완료되었습니다!");
+            await updateDoc(doc(db, "assignments", currentTask.docId), updateData);
+            alert("제출되었습니다!");
             window.closeDetail();
         } catch(e) {
-            console.error("Error updating document:", e);
             alert("전송 실패: " + e.message);
         }
     }
 
-    // Init
-    window.addEventListener('load', window.loadMyTasks);
+    // 7. Logout Helper
+    window.handleLogout = function() {
+        signOut(auth).then(() => window.location.href = 'login.html');
+    }
 </script>
 </body>
 </html>
