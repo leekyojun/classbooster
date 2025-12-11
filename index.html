@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoon's Class Booster V3.4</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #F0F2F5; --white: #ffffff;
+            --text-main: #1A1F36; --text-sub: #697386;
+            --theme-exam: #0052CC; --theme-output: #00875A;
+            --theme-lesson: #FF991F; --theme-magic: #6554C0;
+            --sidebar-width: 240px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans KR', sans-serif; }
+        body { display: flex; height: 100vh; overflow: hidden; background: var(--bg-body); }
+        
+        .sidebar { width: var(--sidebar-width); background: var(--white); border-right: 1px solid #E3E8EE; display: flex; flex-direction: column; padding: 20px; z-index: 10; }
+        .brand { font-size: 20px; font-weight: 900; color: #333; margin-bottom: 30px; display: flex; align-items: center; gap: 8px; }
+        .nav-group { display: flex; flex-direction: column; gap: 5px; margin-bottom: 20px; }
+        .nav-header { font-size: 11px; font-weight: 700; color: #999; margin: 10px 0 5px 10px; }
+        .nav-item { display: flex; align-items: center; padding: 10px 15px; border-radius: 8px; color: var(--text-sub); font-weight: 500; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .nav-item:hover { background: #f0f2f5; color: var(--text-main); }
+        .nav-item.active { background: #E6F0FF; color: var(--theme-exam); font-weight: 700; }
+        .nav-item.active i { color: var(--theme-exam); }
+        .nav-item i { width: 20px; margin-right: 10px; text-align: center; }
+        .main-frame { flex: 1; border: none; width: 100%; height: 100%; background: var(--bg-body); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="brand">
+        <i class="fa-solid fa-rocket" style="color:var(--theme-exam);"></i> <span>Class Booster V3.4</span>
+    </div>
+    <div class="nav-group">
+        <div class="nav-item active" id="nav-home" onclick="loadModule('home.html', this)">
+            <i class="fa-solid fa-chart-pie"></i> 학습 현황 대시보드
+        </div>
+        <div class="nav-item" id="nav-management" onclick="loadModule('management.html', this)">
+            <i class="fa-solid fa-list-check"></i> 숙제 관리 센터
+        </div>
+    </div>
+    <div class="nav-header">LEARNING MODULES</div>
+    <div class="nav-group">
+        <div class="nav-item" id="nav-exam" onclick="loadModule('exam.html', this)">
+            <i class="fa-solid fa-pen-to-square"></i> Exam Booster
+        </div>
+        <div class="nav-item" id="nav-output" onclick="loadModule('output.html', this)">
+            <i class="fa-solid fa-microphone"></i> Output Booster
+        </div>
+        <div class="nav-item" id="nav-lesson" onclick="loadModule('lesson.html', this)">
+            <i class="fa-solid fa-shapes"></i> Lesson Booster
+        </div>
+    </div>
+    <div class="nav-header">SPECIAL</div>
+    <div class="nav-group">
+        <div class="nav-item" id="nav-magic" onclick="loadModule('magic.html', this)">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Magic Report
+        </div>
+    </div>
+</div>
+
+<iframe id="content-frame" class="main-frame" src="home.html"></iframe>
+
+<script>
+    const DB_KEY = 'yoons_v3_2_db';
+    
+    // DB 초기화 함수 (데이터가 없을 때만 실행)
+    function initDB() {
+        if (!localStorage.getItem(DB_KEY)) {
+            const initialData = {
+                students: [
+                    { id: 'S1', name: '김민준', grade: '중1' }, { id: 'S2', name: '이서연', grade: '초6' }
+                ],
+                assignments: [
+                    // 샘플 데이터: 완료 1건, 제출(채점대기) 1건, 미제출 1건
+                    { id: 1, title: 'Ch.1 단어 시험', type: 'Exam', student: '김민준', date: '2025-12-04', status: 'done', score: 95 },
+                    { id: 2, title: 'My Favorite Season', type: 'Writing', student: '이서연', date: '2025-12-10', status: 'submitted', content: "My favorite season is Winter. Because I like snow." },
+                    { id: 3, title: 'Self Introduction', type: 'Speaking', student: '김민준', date: '2025-12-10', status: 'missing', audioUrl: null }
+                ]
+            };
+            localStorage.setItem(DB_KEY, JSON.stringify(initialData));
+            console.log('DB Initialized');
+        }
+    }
+
+    function loadModule(url, el) {
+        document.getElementById('content-frame').src = url;
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        if(el) el.classList.add('active');
+    }
+
+    // 모듈 간 이동 헬퍼 함수
+    // targetTab 파라미터 추가: 해당 페이지 내 특정 탭으로 이동 (예: output.html#feedback)
+    window.moveToModule = function(moduleName, targetTab) {
+        const urlMap = {
+            'home': 'home.html',
+            'management': 'management.html',
+            'exam': 'exam.html',
+            'output': 'output.html'
+        };
+        
+        let url = urlMap[moduleName];
+        if(url) {
+            if(targetTab) url += '#' + targetTab; // 해시태그 추가
+            loadModule(url, document.getElementById('nav-' + moduleName));
+        }
+    }
+
+    initDB();
+</script>
+</body>
+</html>

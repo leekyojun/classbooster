@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Magic Report (Final)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+    <style>
+        body { padding: 0; margin: 0; background: #F0F2F5; font-family: 'Noto Sans KR', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Header */
+        .header { background: white; padding: 15px 30px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { color: #6554C0; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin: 0; }
+
+        /* Layout */
+        .content-area { flex: 1; padding: 30px; overflow: hidden; display: flex; gap: 30px; }
+        
+        /* Left Panel: Settings */
+        .input-panel { flex: 1; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow-y: auto; }
+        
+        /* Right Panel: Preview */
+        .preview-panel { flex: 1.2; background: #F8F9FB; padding: 25px; border-radius: 12px; border: 1px solid #EAE6FF; display: flex; flex-direction: column; }
+
+        /* Form Elements */
+        .section-title { font-size: 15px; font-weight: 800; color: #333; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 13px; color: #555; }
+        .form-control { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; transition: 0.2s; }
+        .form-control:focus { border-color: #6554C0; outline: none; }
+
+        /* Task Selector */
+        .task-list-box { border: 1px solid #eee; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto; background: #fafafa; }
+        .task-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; background: white; border: 1px solid #eee; margin-bottom: 6px; transition: 0.2s; cursor: pointer; }
+        .task-item:hover { border-color: #6554C0; }
+        .task-item.selected { background: #F3F0FF; border-color: #6554C0; }
+        .task-info { flex: 1; }
+        .t-title { font-size: 13px; font-weight: bold; color: #333; }
+        .t-meta { font-size: 11px; color: #888; }
+        .t-score { font-weight: bold; color: #0052CC; font-size: 12px; }
+
+        /* Options Grid */
+        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* Button */
+        .btn-magic { width: 100%; background: linear-gradient(135deg, #6554C0, #8777D9); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: auto; box-shadow: 0 4px 12px rgba(101, 84, 192, 0.3); transition: 0.2s; }
+        .btn-magic:hover { transform: translateY(-2px); }
+
+        /* Report Card (Right Side) */
+        .report-card { background: white; border-radius: 16px; padding: 40px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .report-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: linear-gradient(90deg, #6554C0, #FF0080); }
+        
+        .r-header { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        .r-date { font-size: 12px; color: #888; text-align: right; margin-bottom: 5px; }
+        .r-title { font-size: 22px; font-weight: 800; color: #1A1F36; }
+        
+        .r-body { flex: 1; font-size: 15px; line-height: 1.8; color: #444; white-space: pre-wrap; font-family: 'Noto Sans KR', sans-serif; }
+        
+        .r-footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
+        .teacher-badge { width: 45px; height: 45px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #666; }
+        
+        /* Action Buttons */
+        .action-bar { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-action { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-copy { background: #E9ECEF; color: #333; }
+        .btn-kakao { background: #FAE100; color: #3C1E1E; }
+
+        /* Loader */
+        .loader-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; border-radius: 16px; }
+        .magic-icon { font-size: 40px; color: #6554C0; animation: pulse 1.5s infinite; margin-bottom: 15px; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2><i class="fa-solid fa-wand-magic-sparkles"></i> Magic Report</h2>
+    <div style="font-size:12px; color:#666;">AI 기반 맞춤형 학습 리포트 생성기</div>
+</div>
+
+<div class="content-area">
+    
+    <div class="input-panel">
+        <div class="section-title">1. 대상 및 데이터 선택</div>
+        <div class="form-group">
+            <label class="form-label">학생 선택</label>
+            <select class="form-control" id="target-student" onchange="loadStudentData()">
+                <option value="">학생을 선택하세요</option>
+                </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">리포트에 포함할 최근 완료 과제 (다중 선택 가능)</label>
+            <div class="task-list-box" id="task-list-container">
+                <div style="text-align:center; padding:20px; color:#999; font-size:13px;">학생을 먼저 선택해주세요.</div>
+            </div>
+        </div>
+
+        <div class="section-title">2. 리포트 설정</div>
+        <div class="opt-grid">
+            <div class="form-group">
+                <label class="form-label">목적 (Purpose)</label>
+                <select class="form-control" id="report-purpose">
+                    <option value="monthly">월간 학습 리포트 (정기)</option>
+                    <option value="praise">칭찬 및 격려 (동기부여)</option>
+                    <option value="counsel">학습 태도 상담 (개선요청)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">어조 (Tone)</label>
+                <select class="form-control" id="report-tone">
+                    <option value="polite">정중하고 신뢰감 있게 (기본)</option>
+                    <option value="friendly">친근하고 다정하게 (부드러움)</option>
+                    <option value="factual">객관적이고 간결하게 (데이터 중심)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">선생님 강조 코멘트 (Keywords)</label>
+            <input type="text" class="form-control" id="report-keywords" placeholder="예: 자기주도학습 능력 향상, 단어 암기 필요">
+        </div>
+
+        <button class="btn-magic" onclick="generateReport()">
+            <i class="fa-solid fa-bolt"></i> AI 리포트 생성하기
+        </button>
+    </div>
+
+    <div class="preview-panel">
+        <div class="report-card">
+            <div class="loader-overlay" id="ai-loader">
+                <i class="fa-solid fa-wand-magic-sparkles magic-icon"></i>
+                <div style="font-weight:bold; color:#6554C0;">AI가 학습 데이터를 분석 중입니다...</div>
+                <div style="font-size:12px; color:#888;">잠시만 기다려주세요.</div>
+            </div>
+
+            <div class="r-header">
+                <div class="r-date" id="r-date">2025. 12. 10</div>
+                <div class="r-title">Class Report</div>
+            </div>
+            
+            <div class="r-body" id="r-content">
+                <span style="color:#aaa;">좌측 메뉴에서 학생과 과제를 선택하고 [생성하기] 버튼을 눌러주세요.</span>
+            </div>
+
+            <div class="r-footer">
+                <div class="teacher-badge"><i class="fa-solid fa-user-tie"></i></div>
+                <div>
+                    <div style="font-family: 'Nanum Pen Script', cursive; font-size: 20px; font-weight:bold;">Teacher Kim</div>
+                    <div style="font-size: 11px; color: #999;">Yoon's English School</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn-action btn-copy" onclick="copyToClipboard()"><i class="fa-regular fa-copy"></i> 텍스트 복사</button>
+            <button class="btn-action btn-kakao" onclick="alert('학부모님께 카카오톡이 전송되었습니다.')"><i class="fa-solid fa-comment"></i> 카카오톡 전송</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const DB_KEY = 'yoons_v3_2_db';
+    
+    // 1. Initialize
+    window.onload = function() {
+        const DB = JSON.parse(localStorage.getItem(DB_KEY)) || { students: [] };
+        const select = document.getElementById('target-student');
+        
+        // Mock data check
+        if(DB.students.length === 0) {
+            alert("데이터가 없습니다. index.html을 먼저 실행해주세요.");
+            return;
+        }
+
+        DB.students.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.name;
+            opt.innerText = `${s.name} (${s.grade})`;
+            select.appendChild(opt);
+        });
+
+        // Set Date
+        document.getElementById('r-date').innerText = new Date().toLocaleDateString();
+    };
+
+    // 2. Load Tasks Logic
+    function loadStudentData() {
+        const studentName = document.getElementById('target-student').value;
+        const container = document.getElementById('task-list-container');
+        container.innerHTML = '';
+
+        if(!studentName) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#999; font-size:13px;">학생을 선택해주세요.</div>';
+            return;
+        }
+
+        const DB = JSON.parse(localStorage.getItem(DB_KEY));
+        // Filter: Last 1 Month (Simplified logic: show all 'done' or 'submitted')
+        // In real app, check date diff
+        const tasks = DB.assignments.filter(a => 
+            a.student === studentName && 
+            (a.status === 'done' || a.status === 'submitted')
+        );
+
+        if(tasks.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#999; font-size:13px;">최근 완료한 과제가 없습니다.</div>';
+            return;
+        }
+
+        tasks.forEach(t => {
+            const div = document.createElement('div');
+            div.className = 'task-item';
+            div.onclick = function() { this.classList.toggle('selected'); };
+            
+            let scoreBadge = '';
+            if(t.score) scoreBadge = `<span class="t-score">${t.score}점</span>`;
+            else if(t.status === 'done') scoreBadge = `<span class="t-score" style="color:#00875A">완료</span>`;
+            else scoreBadge = `<span class="t-score" style="color:#FF991F">제출됨</span>`;
+
+            div.innerHTML = `
+                <input type="checkbox" style="pointer-events:none;">
+                <div class="task-info">
+                    <div class="t-title">${t.title}</div>
+                    <div class="t-meta">${t.type} | ${t.date}</div>
+                </div>
+                ${scoreBadge}
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // 3. AI Generation Logic
+    function generateReport() {
+        const studentName = document.getElementById('target-student').value;
+        if(!studentName) return alert("학생을 먼저 선택해주세요.");
+
+        // Get Inputs
+        const selectedTasks = [];
+        const taskItems = document.querySelectorAll('.task-item');
+        taskItems.forEach(item => {
+            if(item.classList.contains('selected')) {
+                const title = item.querySelector('.t-title').innerText;
+                const score = item.querySelector('.t-score').innerText;
+                selectedTasks.push({ title, score });
+            }
+        });
+
+        const purpose = document.getElementById('report-purpose').value;
+        const tone = document.getElementById('report-tone').value;
+        const keywords = document.getElementById('report-keywords').value;
+
+        // Show Loader
+        const loader = document.getElementById('ai-loader');
+        loader.style.display = 'flex';
+
+        setTimeout(() => {
+            // Logic to build text
+            let text = "";
+            
+            // 1. Greeting
+            if(tone === 'polite') text += `${studentName} 학생 학부모님, 안녕하십니까. 윤선생 영어교실입니다.\n\n`;
+            else if(tone === 'friendly') text += `${studentName} 어머니, 안녕하세요! 담당교사 김윤수입니다. ^^ \n\n`;
+            else text += `[${studentName} 학생 학습 리포트]\n\n`;
+
+            // 2. Opening (Purpose)
+            if(purpose === 'monthly') text += `이번 달 ${studentName} 학생의 학습 성취도와 과제 수행 결과를 정리하여 보내드립니다. 꾸준히 학습을 이어나가는 모습이 인상적입니다.\n\n`;
+            else if(purpose === 'praise') text += `요즘 ${studentName}이가 수업 시간에 보여주는 열정과 성실함이 너무 기특해서 소식 전해드립니다!\n\n`;
+            else text += `최근 학습 진행 상황에 대해 몇 가지 상의 드릴 말씀이 있어 리포트를 작성하게 되었습니다.\n\n`;
+
+            // 3. Data Analysis (Selected Tasks)
+            if(selectedTasks.length > 0) {
+                text += "📊 [주요 학습 성과]\n";
+                selectedTasks.forEach(t => {
+                    text += `- ${t.title}: ${t.score}\n`;
+                });
+                text += "\n위와 같이 최근 과제를 성공적으로 수행하였습니다. ";
+                
+                if(selectedTasks.some(t => t.score.includes('점') && parseInt(t.score) > 90)) {
+                    text += "특히 평가 점수가 매우 우수하여 기초 실력이 탄탄해지고 있음을 확인했습니다.\n\n";
+                } else {
+                    text += "성실하게 과제를 제출하는 태도가 실력 향상의 밑거름이 되고 있습니다.\n\n";
+                }
+            } else {
+                text += "최근 완료된 과제 내역은 없으나, 수업 참여도는 양호합니다.\n\n";
+            }
+
+            // 4. Teacher's Comment (Keywords)
+            if(keywords) {
+                text += "💡 [교사 코멘트]\n";
+                text += `선생님이 지켜본 결과, ${studentName} 학생은 ${keywords} 면에서 긍정적인 변화를 보이고 있습니다. `;
+                text += "이러한 점을 가정에서도 많이 칭찬해 주시면 아이가 더 큰 자신감을 가질 것입니다.\n\n";
+            }
+
+            // 5. Closing
+            if(tone === 'polite') text += "앞으로도 꼼꼼하게 지도하겠습니다. 가정에서도 따뜻한 격려 부탁드립니다. 감사합니다.";
+            else if(tone === 'friendly') text += "저도 옆에서 열심히 돕겠습니다! 궁금한 점 있으시면 언제든 연락주세요~ 감사합니다. ♡";
+            else text += "지속적인 관심과 지도 부탁드립니다.";
+
+            // Render
+            document.getElementById('r-content').innerText = text;
+            loader.style.display = 'none';
+        }, 1500);
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('r-content').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('리포트 내용이 복사되었습니다.');
+        });
+    }
+</script>
+</body>
+</html>

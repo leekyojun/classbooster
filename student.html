@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yoon's Student App</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* (CSS 스타일은 기존과 동일하게 유지) */
+        body { margin: 0; padding: 0; background: #F4F5F7; font-family: 'Noto Sans KR', sans-serif; color: #333; }
+        .app-container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: white; display: flex; flex-direction: column; }
+        .app-header { padding: 20px; background: white; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+        .logo { font-weight: 900; color: #0052CC; font-size: 18px; }
+        .user-select { font-size: 13px; border: 1px solid #ddd; padding: 5px 10px; border-radius: 20px; background: #f9f9f9; }
+        .content { flex: 1; padding: 20px; }
+        .section-title { font-size: 16px; font-weight: 800; margin-bottom: 15px; color: #1A1F36; }
+        
+        .task-card { background: white; border: 1px solid #E3E8EE; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); transition: 0.2s; cursor: pointer; position: relative; overflow: hidden; }
+        .task-card:active { transform: scale(0.98); background: #f0f2f5; }
+        .task-card::before { content: ''; position: absolute; left: 0; top: 0; width: 4px; height: 100%; }
+        
+        .type-exam { border-left: 4px solid #0052CC; }
+        .type-writing { border-left: 4px solid #00875A; }
+        .type-speaking { border-left: 4px solid #B76E00; }
+
+        .tag { font-size: 10px; padding: 3px 6px; border-radius: 4px; font-weight: 700; display: inline-block; margin-bottom: 8px; }
+        .tag.exam { background: #E6F0FF; color: #0052CC; }
+        .tag.writing { background: #E3FCEF; color: #00875A; }
+        .tag.speaking { background: #FFFAE6; color: #B76E00; }
+        
+        .task-title { font-weight: 700; font-size: 15px; margin-bottom: 5px; }
+        .task-date { font-size: 12px; color: #888; }
+
+        .detail-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 100; display: none; flex-direction: column; }
+        .detail-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 15px; }
+        .back-btn { font-size: 20px; cursor: pointer; color: #333; }
+        .detail-body { flex: 1; padding: 25px 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        
+        .task-info-box { margin-bottom: 30px; }
+        .ti-title { font-size: 22px; font-weight: 800; margin-bottom: 10px; line-height: 1.3; }
+        .ti-prompt { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px; background: #F8F9FB; padding: 15px; border-radius: 8px; }
+        .hint-label { font-size: 12px; font-weight: bold; color: #B76E00; margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
+        .hint-chip { display: inline-block; font-size: 12px; padding: 5px 10px; background: #FFF9C4; color: #555; border-radius: 15px; margin-right: 5px; margin-bottom: 5px; border: 1px solid #FEEBC8; }
+
+        .writing-area { width: 100%; height: 250px; padding: 15px; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; line-height: 1.6; resize: none; margin-bottom: 20px; font-family: inherit; }
+        .writing-area:focus { outline: none; border-color: #0052CC; }
+
+        .record-area { text-align: center; margin-top: 20px; }
+        .mic-btn { width: 80px; height: 80px; background: #E53E3E; border-radius: 50%; color: white; font-size: 30px; border: none; box-shadow: 0 10px 20px rgba(229, 62, 62, 0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; transition: 0.2s; }
+        .mic-btn.recording { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        .review-box { display: none; background: #2D3748; padding: 15px 25px; border-radius: 40px; align-items: center; gap: 20px; color: white; margin: 0 auto 20px; width: fit-content; }
+        .review-actions { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; }
+        .btn-icon-round { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #ddd; background: white; display: flex; align-items: center; justify-content: center; color: #555; cursor: pointer; }
+
+        .exam-area { text-align: center; }
+        .pdf-link { display: block; padding: 15px; background: #E3F2FD; color: #0052CC; text-decoration: none; border-radius: 8px; font-weight: bold; margin-bottom: 30px; }
+        .upload-box { border: 2px dashed #ccc; border-radius: 12px; padding: 40px 20px; text-align: center; color: #888; cursor: pointer; transition: 0.2s; }
+        .upload-box.active { border-color: #0052CC; color: #0052CC; background: #F0F4FF; }
+        
+        .submit-btn { width: 100%; padding: 16px; background: #0052CC; color: white; border: none; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: auto; }
+        .submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+        .empty-state { text-align: center; padding: 50px 20px; color: #999; }
+    </style>
+    <script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="logo">Yoon's Class</div>
+        <select id="student-select" class="user-select" onchange="window.loadMyTasks()">
+            <option value="김민준">김민준 (중1)</option>
+            <option value="이서연">이서연 (초6)</option>
+        </select>
+    </div>
+
+    <div class="content">
+        <div style="background: #FFF8E1; padding: 15px; border-radius: 8px; font-size: 13px; color: #B76E00; margin-bottom: 20px; line-height: 1.4; border: 1px solid #FFE082;">
+            👋 <strong><span id="user-name">김민준</span> 학생, 안녕하세요!</strong><br>
+            오늘 끝내야 할 미션이 도착해 있습니다.
+        </div>
+
+        <div class="section-title">To-Do List 📝</div>
+        <div id="todo-list">
+            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>
+        </div>
+    </div>
+</div>
+
+<div id="detail-view" class="detail-view">
+    <div class="detail-header">
+        <i class="fa-solid fa-arrow-left back-btn" onclick="window.closeDetail()"></i>
+        <h3 style="font-size: 16px; margin: 0;" id="dt-header-title">Homework</h3>
+    </div>
+    
+    <div class="detail-body">
+        <div class="task-info-box">
+            <div class="ti-title" id="dt-title">Title</div>
+            <div class="ti-prompt" id="dt-prompt">Prompt text...</div>
+            <div class="ti-hints" id="dt-hints-area" style="display:none;">
+                <div class="hint-label"><i class="fa-regular fa-lightbulb"></i> Key Expressions</div>
+                <div id="dt-hints-list"></div>
+            </div>
+        </div>
+
+        <div id="input-container">
+            <div id="input-writing" style="display:none;">
+                <textarea id="w-text" class="writing-area" placeholder="여기에 답변을 작성하세요..."></textarea>
+            </div>
+
+            <div id="input-speaking" style="display:none;">
+                <div class="record-area">
+                    <div id="rec-control">
+                        <button id="mic-btn" class="mic-btn" onclick="window.toggleRecord()">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        <p id="rec-status" style="font-weight:bold; color:#555;">터치하여 녹음 시작</p>
+                    </div>
+                    <div id="rec-review" style="display:none;">
+                        <div class="review-box" onclick="window.playAudio()">
+                            <i class="fa-solid fa-play" id="play-icon"></i>
+                            <div style="width:100px; height:4px; background:#4A5568;"></div>
+                            <span style="font-size:12px;">Review</span>
+                        </div>
+                        <div class="review-actions">
+                            <div onclick="window.resetRecorder()" style="text-align:center; cursor:pointer;">
+                                <div class="btn-icon-round"><i class="fa-solid fa-rotate-left"></i></div>
+                                <span style="font-size:11px; color:#666; display:block; margin-top:5px;">다시 녹음</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="input-exam" style="display:none;">
+                <div class="exam-area">
+                    <a href="#" class="pdf-link" onclick="alert('PDF 파일이 다운로드되었습니다. (시뮬레이션)')">
+                        <i class="fa-solid fa-file-pdf"></i> 문제지 다운로드 (PDF)
+                    </a>
+                    
+                    <input type="file" id="file-upload" accept="image/*" style="display:none;" onchange="window.handleFileSelect(this)">
+                    <div class="upload-box" id="upload-box" onclick="document.getElementById('file-upload').click()">
+                        <div id="upload-placeholder">
+                            <i class="fa-solid fa-camera" style="font-size:40px; margin-bottom:10px;"></i>
+                            <p style="margin:0; font-weight:bold;">답안지 촬영 또는 업로드</p>
+                            <p style="font-size:12px; margin-top:5px;">(여기를 터치하세요)</p>
+                        </div>
+                        <div id="file-name" style="margin-top:15px; color:#00875A; font-weight:bold; display:none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="btn-submit" class="submit-btn" onclick="window.handleSubmit()">제출하기</button>
+</div>
+
+<script type="module">
+    // Firebase Imports and Global Variables
+    let myTasks = [];
+    let currentTask = null;
+    
+    // Speaking Variables
+    let mediaRecorder;
+    let audioChunks = [];
+    let audioBlob = null;
+    let audioUrl = null;
+    let isRecording = false;
+    let hasFile = false; // Exam file check
+
+    // 1. Data Loading
+    window.loadMyTasks = function() {
+        const studentName = document.getElementById('student-select').value;
+        document.getElementById('user-name').innerText = studentName;
+        const listContainer = document.getElementById('todo-list');
+        listContainer.innerHTML = '<div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i> 로딩 중...</div>';
+
+        // Firebase Query
+        const q = window.query(
+            window.collection(window.db, "assignments"), 
+            window.where("student", "==", studentName)
+        );
+
+        window.onSnapshot(q, (snapshot) => {
+            myTasks = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                // Filter: 'missing' or 'assigned' only
+                if(data.status === 'missing' || data.status === 'assigned') {
+                    // Store Document ID for updating later
+                    myTasks.push({ docId: doc.id, ...data });
+                }
+            });
+            renderList();
+        }, (error) => {
+            console.error("Error loading tasks:", error);
+            listContainer.innerHTML = '<div class="empty-state">데이터를 불러오지 못했습니다.</div>';
+        });
+    }
+
+    function renderList() {
+        const container = document.getElementById('todo-list');
+        container.innerHTML = '';
+
+        if(myTasks.length === 0) {
+            container.innerHTML = '<div class="empty-state"><i class="fa-solid fa-check-circle" style="color:#00875A; font-size:40px; margin-bottom:15px;"></i><br>야호! 모든 숙제를 끝냈어요.</div>';
+            return;
+        }
+
+        // Sort by date descending
+        myTasks.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+        myTasks.forEach(t => {
+            let typeClass = 'type-exam';
+            let tagClass = 'exam';
+            if(t.type === 'Writing') { typeClass = 'type-writing'; tagClass = 'writing'; }
+            if(t.type === 'Speaking') { typeClass = 'type-speaking'; tagClass = 'speaking'; }
+
+            // Important: Use docId for identifying the task
+            container.innerHTML += `
+                <div class="task-card ${typeClass}" onclick="window.openTask('${t.docId}')">
+                    <span class="tag ${tagClass}">${t.type}</span>
+                    <div class="task-title">${t.title}</div>
+                    <div class="task-date"><i class="fa-regular fa-calendar"></i> ${t.date} 까지</div>
+                </div>
+            `;
+        });
+    }
+
+    // 2. Open Detail
+    window.openTask = function(docId) {
+        currentTask = myTasks.find(t => t.docId === docId);
+        if(!currentTask) {
+            console.error("Task not found for ID:", docId);
+            return;
+        }
+
+        // Reset inputs
+        hasFile = false;
+        window.resetRecorder();
+        window.resetFileUpload();
+        document.getElementById('btn-submit').disabled = false;
+
+        // UI Binding
+        document.getElementById('dt-header-title').innerText = `${currentTask.type} Homework`;
+        document.getElementById('dt-title').innerText = currentTask.title;
+        document.getElementById('dt-prompt').innerText = currentTask.prompt || "선생님이 작성한 가이드가 없습니다.";
+
+        // Hints
+        const hintArea = document.getElementById('dt-hints-area');
+        const hintList = document.getElementById('dt-hints-list');
+        if(currentTask.hints && currentTask.hints.length > 0) {
+            hintArea.style.display = 'block';
+            hintList.innerHTML = currentTask.hints.map(h => `<span class="hint-chip">${h}</span>`).join('');
+        } else {
+            hintArea.style.display = 'none';
+        }
+
+        // View Switching
+        document.getElementById('input-writing').style.display = 'none';
+        document.getElementById('input-speaking').style.display = 'none';
+        document.getElementById('input-exam').style.display = 'none';
+
+        if(currentTask.type === 'Writing') {
+            document.getElementById('input-writing').style.display = 'block';
+            document.getElementById('w-text').value = '';
+        } else if(currentTask.type === 'Speaking') {
+            document.getElementById('input-speaking').style.display = 'block';
+            document.getElementById('btn-submit').disabled = true; // Wait for recording
+        } else if(currentTask.type === 'Exam') {
+            document.getElementById('input-exam').style.display = 'block';
+            document.getElementById('btn-submit').disabled = true; // Wait for upload
+        }
+
+        document.getElementById('detail-view').style.display = 'flex';
+    }
+
+    window.closeDetail = function() {
+        document.getElementById('detail-view').style.display = 'none';
+        currentTask = null;
+    }
+
+    // 3. Speaking Logic
+    window.toggleRecord = async function() {
+        const btn = document.getElementById('mic-btn');
+        const status = document.getElementById('rec-status');
+
+        if(!isRecording) {
+            // Start
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Switch to Review
+                    document.getElementById('rec-control').style.display = 'none';
+                    document.getElementById('rec-review').style.display = 'flex';
+                    document.getElementById('btn-submit').disabled = false;
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                btn.classList.add('recording');
+                btn.innerHTML = '<i class="fa-solid fa-stop"></i>';
+                status.innerText = "녹음 중... (터치하여 중지)";
+                status.style.color = "#E53E3E";
+
+            } catch(err) {
+                alert("마이크 권한이 필요합니다: " + err);
+            }
+        } else {
+            // Stop
+            mediaRecorder.stop();
+            isRecording = false;
+            btn.classList.remove('recording');
+        }
+    }
+
+    window.resetRecorder = function() {
+        isRecording = false;
+        audioBlob = null;
+        document.getElementById('rec-control').style.display = 'block';
+        document.getElementById('rec-review').style.display = 'none';
+        
+        const btn = document.getElementById('mic-btn');
+        btn.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+        btn.classList.remove('recording');
+        document.getElementById('rec-status').innerText = "터치하여 녹음 시작";
+        document.getElementById('rec-status').style.color = "#555";
+        
+        // Disable submit for Speaking if reset
+        if(currentTask && currentTask.type === 'Speaking') {
+            document.getElementById('btn-submit').disabled = true;
+        }
+    }
+
+    window.playAudio = function() {
+        if(audioUrl) {
+            const audio = new Audio(audioUrl);
+            audio.play();
+        }
+    }
+
+    // 4. Exam Logic
+    window.handleFileSelect = function(input) {
+        if(input.files && input.files[0]) {
+            hasFile = true;
+            const name = input.files[0].name;
+            const box = document.getElementById('upload-box');
+            const placeholder = document.getElementById('upload-placeholder');
+            const nameDisplay = document.getElementById('file-name');
+            
+            box.classList.add('active');
+            placeholder.style.display = 'none'; // Hide instruction
+            nameDisplay.innerText = name;
+            nameDisplay.style.display = 'block';
+            
+            document.getElementById('btn-submit').disabled = false;
+        }
+    }
+
+    window.resetFileUpload = function() {
+        hasFile = false;
+        const box = document.getElementById('upload-box');
+        const placeholder = document.getElementById('upload-placeholder');
+        const nameDisplay = document.getElementById('file-name');
+
+        box.classList.remove('active');
+        placeholder.style.display = 'block';
+        nameDisplay.style.display = 'none';
+        nameDisplay.innerText = '';
+        document.getElementById('file-upload').value = '';
+    }
+
+    // 5. Submit Logic
+    window.handleSubmit = async function() {
+        if(!currentTask) return;
+
+        let updateData = {
+            status: 'submitted',
+            submittedAt: new Date().toISOString()
+        };
+
+        // Writing Validation
+        if(currentTask.type === 'Writing') {
+            const content = document.getElementById('w-text').value;
+            if(content.length < 5) return alert("내용을 더 작성해주세요.");
+            if(!confirm("이대로 제출하시겠습니까?\n제출한 내용은 수정할 수 없습니다.")) return;
+            
+            updateData.content = content;
+        } 
+        // Speaking Validation
+        else if(currentTask.type === 'Speaking') {
+            // Note: In real app, upload audioBlob to Storage, get URL.
+            // Here we simulate with a dummy URL.
+            updateData.audioUrl = "https://example.com/simulated_audio.mp3";
+        }
+        // Exam Validation
+        else if(currentTask.type === 'Exam') {
+            // Note: In real app, upload file to Storage, get URL.
+            updateData.content = "Answer file uploaded";
+        }
+
+        // Firebase Update
+        try {
+            const docRef = window.doc(window.db, "assignments", currentTask.docId);
+            await window.updateDoc(docRef, updateData);
+            alert("🎉 과제 제출이 완료되었습니다!");
+            window.closeDetail();
+        } catch(e) {
+            console.error("Error updating document:", e);
+            alert("전송 실패: " + e.message);
+        }
+    }
+
+    // Init
+    window.addEventListener('load', window.loadMyTasks);
+</script>
+</body>
+</html>

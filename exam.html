@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Exam Booster (Firebase)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* (기존 CSS 스타일 유지 - 생략) */
+        body { padding: 0; margin: 0; background: #F0F2F5; font-family: 'Noto Sans KR', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        .header { background: white; padding: 15px 30px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { color: #0052CC; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin: 0; }
+        .main-tabs { display: flex; background: #E9ECEF; padding: 5px; border-radius: 30px; gap: 5px; }
+        .m-tab { padding: 8px 20px; border-radius: 20px; border: none; font-weight: 700; cursor: pointer; color: #666; transition: 0.2s; font-size: 14px; }
+        .m-tab.active { background: #0052CC; color: white; }
+        .content-area { flex: 1; padding: 30px; overflow-y: auto; display: flex; gap: 30px; }
+        .module-section { display: none; width: 100%; height: 100%; }
+        .module-section.active { display: flex; gap: 30px; width: 100%; }
+        .control-panel { flex: 1; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: fit-content; min-width: 350px; }
+        .form-label { font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 8px; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; font-size: 14px; }
+        textarea.form-control { height: 200px; resize: vertical; line-height: 1.6; }
+        .tool-btn-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tool-btn { flex: 1; padding: 12px; border: 1px solid #ddd; background: white; border-radius: 8px; cursor: pointer; font-weight: bold; color: #555; transition: 0.2s; }
+        .tool-btn.active { background: #E6F0FF; color: #0052CC; border-color: #0052CC; }
+        .btn-action { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-print { background: #2D3748; }
+        .btn-send { background: #FAE100; color: #3C1E1E; }
+        .btn-ocr { background: #4A5568; color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; border: none; cursor: pointer; float: right; }
+        .preview-panel { flex: 1.5; background: #525659; padding: 30px; border-radius: 12px; display: flex; justify-content: center; overflow-y: auto; }
+        .a4-paper { background: white; width: 100%; max-width: 210mm; min-height: 297mm; padding: 40px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); font-family: serif; position: relative; }
+        .ws-header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .ws-title { font-size: 24px; font-weight: bold; color: #000; }
+        .ws-info { font-size: 14px; color: #555; }
+        .word-token { cursor: pointer; padding: 2px; border-radius: 3px; transition: 0.1s; }
+        .word-token:hover { background: #FFF0B3; }
+        .word-token.blank { background: #eee; color: transparent; border-bottom: 1px solid #333; min-width: 30px; display: inline-block; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
+        .modal-box { background: white; padding: 30px; border-radius: 16px; width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #333; display: flex; align-items: center; gap: 10px; }
+        .student-list { max-height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 20px; }
+        .s-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f9f9f9; }
+        .ocr-loader { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; z-index: 10; }
+    </style>
+    <script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+
+<div class="header">
+    <h2><i class="fa-solid fa-pen-to-square"></i> Exam Booster</h2>
+    <div class="main-tabs">
+        <button class="m-tab active" onclick="switchTab('reading')">내신 프렙 (Reading)</button>
+        <button class="m-tab" onclick="switchTab('grammar')">Grammar Bot</button>
+    </div>
+</div>
+
+<div class="content-area">
+    <div id="view-reading" class="module-section active">
+        <div class="control-panel" style="position: relative;">
+            <div id="ocr-loading" class="ocr-loader">
+                <i class="fa-solid fa-camera fa-beat" style="font-size: 30px; color: #0052CC; margin-bottom: 15px;"></i>
+                <div style="font-weight: bold; color: #0052CC;">AI Scanning...</div>
+                <div style="font-size: 12px; color: #666;">이미지에서 텍스트를 추출하고 있습니다.</div>
+            </div>
+            <h3 style="margin-top:0;">📝 Activity 생성기</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <label class="form-label" style="margin:0;">Step 1. 지문 입력</label>
+                <div>
+                    <input type="file" id="ocr-upload" accept="image/*" style="display: none;" onchange="handleOCR(this)">
+                    <button class="btn-ocr" onclick="document.getElementById('ocr-upload').click()"><i class="fa-solid fa-camera"></i> 사진/이미지 입력</button>
+                </div>
+            </div>
+            <textarea id="reading-input" class="form-control" onkeyup="renderReading(currentReadingMode)">Yoon's English School provides a systematic curriculum for students. It focuses on phonics, reading, and speaking skills.</textarea>
+            <label class="form-label">Step 2. 변형 유형</label>
+            <div class="tool-btn-group">
+                <button class="tool-btn active" onclick="setReadingMode('blank', this)">빈칸 뚫기 (Click)</button>
+                <button class="tool-btn" onclick="setReadingMode('order', this)">문장 배열</button>
+            </div>
+            <div style="background: #F8F9FB; padding: 15px; border-radius: 8px; font-size: 12px; color: #666; margin-bottom: 20px;">
+                <i class="fa-solid fa-mouse-pointer"></i> <strong>Tip:</strong> 미리보기 화면의 단어를 클릭하여 빈칸을 만드세요.
+            </div>
+            <label class="form-label">Step 3. 배포</label>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action btn-print" onclick="printPage()"><i class="fa-solid fa-print"></i> 프린트</button>
+                <button class="btn-action btn-send" onclick="openAssignModal('Reading')"><i class="fa-solid fa-paper-plane"></i> 숙제 전송</button>
+            </div>
+        </div>
+        <div class="preview-panel">
+            <div class="a4-paper" id="reading-paper">
+                <div class="ws-header">
+                    <div class="ws-title">Reading Worksheet</div>
+                    <div class="ws-info">Name: _______________ &nbsp; Date: __________</div>
+                </div>
+                <div id="reading-content" style="font-size: 18px; line-height: 2.0; text-align: justify;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-grammar" class="module-section">
+        <div class="control-panel">
+            <h3 style="margin-top:0; color: #6554C0;">🤖 문법 문제 생성기</h3>
+            <label class="form-label">문법 포인트</label>
+            <select id="grammar-topic" class="form-control">
+                <option value="to_inf">To 부정사 (To-Infinitive)</option>
+                <option value="gerund">동명사 (Gerund)</option>
+                <option value="passive">수동태 (Passive Voice)</option>
+            </select>
+            <label class="form-label">문항 수</label>
+            <select id="grammar-count" class="form-control">
+                <option value="5">5문제</option>
+                <option value="10">10문제</option>
+            </select>
+            <button class="btn-action" style="background: #6554C0; margin-bottom: 20px;" onclick="generateGrammar()"><i class="fa-solid fa-bolt"></i> 문제 생성하기</button>
+            <label class="form-label">Step 2. 배포</label>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-action btn-print" onclick="printPage()"><i class="fa-solid fa-print"></i> 프린트</button>
+                <button class="btn-action btn-send" onclick="openAssignModal('Grammar')"><i class="fa-solid fa-paper-plane"></i> 숙제 전송</button>
+            </div>
+        </div>
+        <div class="preview-panel">
+            <div class="a4-paper">
+                <div class="ws-header">
+                    <div class="ws-title" style="color: #6554C0;">Grammar Drill</div>
+                    <div class="ws-info">Topic: <span id="ws-topic-name">Topic</span></div>
+                </div>
+                <div id="grammar-content">
+                    <div style="text-align: center; color: #999; padding-top: 100px;">왼쪽에서 주제를 선택하고 생성 버튼을 눌러주세요.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="assign-modal" class="modal-overlay">
+    <div class="modal-box">
+        <div class="modal-title"><i class="fa-solid fa-paper-plane" style="color: #FAE100;"></i><span>숙제 배포 (PDF)</span></div>
+        <label class="form-label">숙제 제목</label>
+        <input type="text" id="modal-title" class="form-control">
+        <label class="form-label">마감일 (Due Date)</label>
+        <input type="date" id="modal-date" class="form-control">
+        <label class="form-label">학생 선택</label>
+        <div class="student-list" id="modal-students">
+            <div class="s-item"><input type="checkbox" id="s1" value="김민준" checked><label for="s1">김민준 (중1)</label></div>
+            <div class="s-item"><input type="checkbox" id="s2" value="이서연" checked><label for="s2">이서연 (초6)</label></div>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button class="btn-action" style="background: #ddd; color: #333;" onclick="closeModal()">취소</button>
+            <button class="btn-action btn-send" onclick="confirmAssign()">전송하기</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // Firebase 객체 사용
+    let currentReadingMode = 'blank';
+    let currentAssignType = '';
+
+    window.switchTab = function(id) {
+        document.querySelectorAll('.module-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + id).classList.add('active');
+        document.querySelectorAll('.m-tab').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        if(id === 'reading') renderReading('blank');
+    }
+
+    window.handleOCR = function(input) {
+        if(input.files && input.files[0]) {
+            document.getElementById('ocr-loading').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('ocr-loading').style.display = 'none';
+                const mockText = "Climate change is a long-term shift in global or regional climate patterns. Often climate change refers specifically to the rise in global temperatures from the mid-20th century to present.";
+                document.getElementById('reading-input').value = mockText;
+                renderReading(currentReadingMode);
+                alert('이미지에서 텍스트 추출이 완료되었습니다!');
+            }, 1500);
+        }
+    }
+
+    window.setReadingMode = function(mode, btn) {
+        currentReadingMode = mode;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderReading(mode);
+    }
+
+    window.renderReading = function(mode) {
+        const text = document.getElementById('reading-input').value;
+        const container = document.getElementById('reading-content');
+        container.innerHTML = '';
+        if (mode === 'blank') {
+            const words = text.split(' ');
+            words.forEach(word => {
+                const span = document.createElement('span');
+                span.innerText = word + ' ';
+                span.className = 'word-token';
+                span.onclick = function() { this.classList.toggle('blank'); };
+                container.appendChild(span);
+            });
+        } else {
+            const sentences = text.match( /[^.!?]+[.!?]+/g ) || [text];
+            const shuffled = sentences.sort(() => Math.random() - 0.5);
+            const ol = document.createElement('ol');
+            shuffled.forEach(sent => {
+                const li = document.createElement('li');
+                li.innerText = sent.trim();
+                li.style.marginBottom = '15px';
+                li.style.border = '1px dashed #ddd';
+                li.style.padding = '10px';
+                ol.appendChild(li);
+            });
+            container.innerHTML = '<strong>다음 문장들을 바르게 배열하시오.</strong><br><br>';
+            container.appendChild(ol);
+        }
+    }
+
+    const grammarDB = {
+        'to_inf': ["I want to go home.", "It is easy to learn.", "She decided to study."],
+        'gerund': ["I enjoy playing soccer.", "Stop talking.", "He is good at swimming."],
+        'passive': ["The room was cleaned.", "It is made of wood.", "The letter was written."]
+    };
+
+    window.generateGrammar = function() {
+        const topic = document.getElementById('grammar-topic').value;
+        const topicName = document.getElementById('grammar-topic').options[document.getElementById('grammar-topic').selectedIndex].text;
+        const count = parseInt(document.getElementById('grammar-count').value);
+        document.getElementById('ws-topic-name').innerText = topicName;
+        const container = document.getElementById('grammar-content');
+        container.innerHTML = '';
+        const pool = grammarDB[topic] || [];
+        for(let i=0; i<count; i++) {
+            const q = pool[i % pool.length];
+            const div = document.createElement('div');
+            div.style.marginBottom = "20px";
+            div.innerHTML = `<strong>${i+1}.</strong> 다음 문장의 빈칸을 채우거나 어법상 옳은 것을 고르시오.<br><div style="margin-top:5px; padding:10px; border:1px solid #eee;">${q}</div>`;
+            container.appendChild(div);
+        }
+    }
+
+    window.openAssignModal = function(type) {
+        currentAssignType = type;
+        document.getElementById('modal-title').value = type === 'Reading' ? 'Ch.3 본문 워크시트' : '문법 드릴 (Grammar)';
+        document.getElementById('modal-date').value = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0];
+        document.getElementById('assign-modal').style.display = 'flex';
+    }
+
+    window.closeModal = function() {
+        document.getElementById('assign-modal').style.display = 'none';
+    }
+
+    // [Firebase] 저장 로직
+    window.confirmAssign = async function() {
+        const title = document.getElementById('modal-title').value;
+        const date = document.getElementById('modal-date').value;
+        const checked = document.querySelectorAll('#modal-students input:checked');
+
+        if(checked.length === 0) return alert('학생을 최소 1명 선택해주세요.');
+
+        try {
+            const promises = [];
+            checked.forEach(chk => {
+                const studentName = chk.value;
+                promises.push(
+                    window.addDoc(window.collection(window.db, "assignments"), {
+                        id: Date.now() + Math.random(), // 정렬용 임시 ID
+                        title: title + ' [PDF]',
+                        type: 'Exam', // Exam은 모두 같은 타입
+                        student: studentName,
+                        date: date,
+                        status: 'missing',
+                        score: null,
+                        prompt: "PDF 파일을 다운로드하여 풀고 답안지를 업로드하세요.",
+                        hints: [],
+                        content: null,
+                        feedback: null
+                    })
+                );
+            });
+            await Promise.all(promises);
+            alert('선택한 학생들에게 숙제(PDF 링크)가 전송되었습니다.');
+            closeModal();
+        } catch(e) {
+            console.error(e);
+            alert('전송 실패: ' + e.message);
+        }
+    }
+
+    window.printPage = function() { alert('🖨️ 프린트 출력 창이 실행됩니다.'); }
+
+    // Init
+    renderReading('blank');
+</script>
+</body>
+</html>

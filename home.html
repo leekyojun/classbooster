@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { padding: 30px; background: #F0F2F5; font-family: 'Noto Sans KR', sans-serif; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .header h2 { font-size: 24px; font-weight: 800; color: #1A1F36; margin: 0; }
+
+        /* Stat Cards */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 24px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid #E3E8EE; position: relative; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+        .stat-card.alert { border-left: 4px solid #E53E3E; }
+        .stat-card.good { border-left: 4px solid #00875A; }
+        .stat-val { font-size: 28px; font-weight: 800; margin: 8px 0; }
+        .stat-label { font-size: 13px; color: #888; font-weight: 600; }
+        
+        .btn { padding: 4px 10px; border-radius: 4px; border: none; font-size: 11px; font-weight: bold; cursor: pointer; color: white; }
+        .btn-danger { background: #E53E3E; }
+        .btn-success { background: #00875A; }
+        .btn-ghost { background: white; color: #555; border: 1px solid #ddd; padding: 8px 15px; font-size: 13px; cursor: pointer; }
+
+        /* Main Layout */
+        .dashboard-main { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); display: flex; flex-direction: column; }
+        h3 { margin: 0 0 20px 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+
+        /* Progress Bar (Global) */
+        .progress-bar { background: #eee; height: 8px; border-radius: 4px; margin-top: 5px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        /* Feed Item */
+        .feed-item { display: flex; gap: 15px; align-items: start; padding-bottom: 15px; border-bottom: 1px solid #eee; margin-bottom: 15px; animation: fadeIn 0.5s ease; }
+        .feed-item:last-child { border-bottom: none; margin-bottom: 0; }
+        .feed-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+        .feed-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; color: #333; line-height: 1.4; }
+        .feed-time { font-size: 12px; color: #888; }
+
+        /* Student Status List */
+        .student-item { margin-bottom: 18px; }
+        .st-header { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; font-weight: 600; color: #333; }
+        .st-stats { font-size: 12px; color: #666; font-weight: normal; }
+        .st-rate { font-weight: 800; color: #0052CC; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+    <div class="header">
+        <h2><i class="fa-solid fa-chart-pie" style="color: #697386;"></i> 학습 현황 대시보드</h2>
+        <button class="btn-ghost" onclick="location.reload()"><i class="fa-solid fa-rotate-right"></i> 새로고침</button>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card alert">
+            <div class="stat-label">관리 필요 (미제출)</div>
+            <div class="stat-val" style="color: #E53E3E;" id="val-missing">-</div>
+            <button class="btn btn-danger" onclick="parent.moveToModule('management')">리마인드 보내기</button>
+        </div>
+        <div class="stat-card good">
+            <div class="stat-label">채점 대기 (Writing/Speaking)</div>
+            <div class="stat-val" style="color: #00875A;" id="val-grading">-</div>
+            <button class="btn btn-success" onclick="parent.moveToModule('output', 'feedback')">채점하기</button>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">금주 숙제 완료율</div>
+            <div class="stat-val" id="val-rate">0%</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="bar-rate" style="width: 0%; background: #0052CC;"></div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">총 수강생</div>
+            <div class="stat-val" id="val-student">0명</div>
+        </div>
+    </div>
+
+    <div class="dashboard-main">
+        <div class="card">
+            <h3>📢 실시간 학습 피드 (Live Feed)</h3>
+            <div id="live-feed" style="flex:1; overflow-y:auto; max-height: 400px;">
+                <div style="padding:20px; text-align:center; color:#999;"><i class="fa-solid fa-spinner fa-spin"></i> 데이터 로딩 중...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>👨‍🎓 학생별 과제 현황</h3>
+            <div id="student-status-list" style="flex:1; overflow-y:auto; max-height: 400px;">
+                <div style="padding:20px; text-align:center; color:#999;"><i class="fa-solid fa-spinner fa-spin"></i> 데이터 로딩 중...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase 로드 후 실행
+        window.addEventListener('load', () => {
+            // assignments 컬렉션 실시간 구독
+            const q = window.query(window.collection(window.db, "assignments"), window.orderBy("id", "desc")); // ID(타임스탬프) 기준 정렬
+
+            window.onSnapshot(q, (snapshot) => {
+                const assignments = [];
+                const studentsSet = new Set(); // 학생 명단 추출용
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    assignments.push({ id: doc.id, ...data });
+                    if(data.student) studentsSet.add(data.student);
+                });
+
+                const students = Array.from(studentsSet).map(name => ({ name:

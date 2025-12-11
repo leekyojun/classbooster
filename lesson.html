@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Lesson Booster</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; background: #F0F2F5; font-family: 'Noto Sans KR', sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: white; padding: 15px 30px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
+        .header h2 { color: #FF991F; font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 10px; margin: 0; }
+        .tabs { display: flex; background: #E9ECEF; padding: 5px; border-radius: 30px; gap: 5px; }
+        .tab { padding: 8px 20px; border-radius: 20px; border: none; font-weight: 700; cursor: pointer; color: #666; transition: 0.2s; }
+        .tab.active { background: #FF991F; color: white; }
+        .frame-container { flex: 1; border: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2><i class="fa-solid fa-shapes"></i> Lesson Booster</h2>
+        <div class="tabs">
+            <button class="tab active" onclick="loadFrame('http://vod.yoons.gscdn.com/pic2/', this)">Phonics In Class</button>
+            <button class="tab" onclick="loadFrame('http://vod.yoons.gscdn.com/smartsam/phonics/', this)">Phonics Builder</button>
+            <button class="tab" onclick="loadFrame('http://vod.yoons.gscdn.com/smartsam/animation/', this)">Animation</button>
+        </div>
+    </div>
+    
+    <iframe id="lesson-frame" class="frame-container" src="http://vod.yoons.gscdn.com/pic2/"></iframe>
+
+    <script>
+        function loadFrame(url, btn) {
+            document.getElementById('lesson-frame').src = url;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+        }
+    </script>
+</body>
+</html>
