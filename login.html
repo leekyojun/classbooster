@@ -126,8 +126,13 @@
                 await createUserWithEmailAndPassword(auth, acc.email, acc.pass);
                 successCount++;
             } catch(e) {
-                console.log(`계정 생성 건너뜀 (${acc.email}): 이미 존재함`);
-            }
+        if (e.code === 'auth/email-already-in-use') {
+        console.log(`계정 생성 건너뜀 (${acc.email}): 이미 존재함`);
+    } else {
+        console.error(`❌ 계정 생성 실패 (${acc.email}):`, e.code, e.message);
+        alert(`계정 생성 오류: ${e.message}`);
+    }
+}
         }
         alert(`${successCount}개의 계정이 새로 생성되었습니다.\n이제 로그인 테스트가 가능합니다.`);
     }
