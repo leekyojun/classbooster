@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoon's Class Booster - Login</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; background: #F0F2F5; font-family: 'Noto Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
+        .login-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 400px; text-align: center; }
+        .logo { font-size: 24px; font-weight: 900; color: #0052CC; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .subtitle { font-size: 14px; color: #666; margin-bottom: 30px; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-label { display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px; }
+        .form-input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; transition: 0.2s; }
+        .form-input:focus { border-color: #0052CC; outline: none; }
+        .btn-login { width: 100%; padding: 14px; background: #0052CC; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .btn-login:hover { background: #0043a8; }
+        .btn-login:disabled { background: #ccc; cursor: not-allowed; }
+        .error-msg { color: #E53E3E; font-size: 13px; margin-top: 15px; display: none; }
+        
+        /* Demo setup styling */
+        .demo-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .btn-link { background: none; border: none; color: #888; font-size: 12px; cursor: pointer; text-decoration: underline; }
+    </style>
+    <script type="module" src="firebase-config.js"></script>
+</head>
+<body>
+
+<div class="login-card">
+    <div class="logo"><i class="fa-solid fa-rocket"></i> Yoon's Class</div>
+    <div class="subtitle">학습 관리 시스템에 오신 것을 환영합니다.</div>
+
+    <form id="login-form">
+        <div class="form-group">
+            <label class="form-label">이메일</label>
+            <input type="email" id="email" class="form-input" placeholder="이메일을 입력하세요" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">비밀번호</label>
+            <input type="password" id="password" class="form-input" placeholder="비밀번호를 입력하세요" required>
+        </div>
+        <button type="submit" id="btn-submit" class="btn-login">로그인</button>
+        <div id="error-msg" class="error-msg"></div>
+    </form>
+
+    <div class="demo-section">
+        <p style="font-size: 11px; color: #aaa; margin-bottom: 10px;">
+            [테스트 계정 정보]<br>
+            교사: teacher@yoons.com / 123456<br>
+            학생: minjun@yoons.com / 123456
+        </p>
+        <button type="button" class="btn-link" onclick="createDemoAccounts()">⚠️ 초기 세팅: 데모 계정 생성하기 (클릭)</button>
+    </div>
+</div>
+
+<script type="module">
+    import { auth, db } from "./firebase-config.js";
+    import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const loginForm = document.getElementById('login-form');
+    const errorMsg = document.getElementById('error-msg');
+    const btnSubmit = document.getElementById('btn-submit');
+
+    // 1. 로그인 로직
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorMsg.style.display = 'none';
+        btnSubmit.disabled = true;
+        btnSubmit.innerText = "로그인 중...";
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            // Firebase Auth 로그인
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Firestore에서 역할(Role) 확인
+            const userDoc = await getDoc(doc(db, "users", user.uid)); // 1차 작업 시 설정한 uid와 다를 수 있음 (아래 설명 참조)
+            
+            // 주의: 데모 계정 생성 시 uid를 수동 지정할 수 없으므로, 이메일로 매핑하거나
+            // 실제 앱에서는 Auth UID를 Firestore User ID로 사용해야 합니다.
+            // 여기서는 편의상 Auth 로그인 성공 시, 이메일 도메인이나 role 필드를 체크하여 이동합니다.
+            
+            // Firestore 조회를 위한 보완 로직 (UID 매칭이 안될 경우 대비)
+            let role = 'student'; // 기본값
+            if(userDoc.exists()) {
+                role = userDoc.data().role;
+            } else if(email.includes('teacher')) {
+                role = 'teacher';
+            }
+
+            // 페이지 리다이렉트
+            if(role === 'teacher') {
+                window.location.href = 'index.html';
+            } else {
+                window.location.href = 'student.html';
+            }
+
+        } catch (error) {
+            console.error(error);
+            errorMsg.innerText = "로그인 실패: 이메일 또는 비밀번호를 확인하세요.";
+            errorMsg.style.display = 'block';
+            btnSubmit.disabled = false;
+            btnSubmit.innerText = "로그인";
+        }
+    });
+
+    // 2. 데모 계정 생성 헬퍼 (최초 1회용)
+    window.createDemoAccounts = async function() {
+        if(!confirm("데모용 계정(교사 1, 학생 2)을 생성하시겠습니까?\n이미 생성된 경우 오류가 발생할 수 있습니다.")) return;
+        
+        const demos = [
+            { email: "teacher@yoons.com", pass: "123456" },
+            { email: "minjun@yoons.com", pass: "123456" },
+            { email: "seoyeon@yoons.com", pass: "123456" }
+        ];
+
+        let successCount = 0;
+        for(const acc of demos) {
+            try {
+                await createUserWithEmailAndPassword(auth, acc.email, acc.pass);
+                successCount++;
+            } catch(e) {
+                console.log(`계정 생성 건너뜀 (${acc.email}): 이미 존재함`);
+            }
+        }
+        alert(`${successCount}개의 계정이 새로 생성되었습니다.\n이제 로그인 테스트가 가능합니다.`);
+    }
+</script>
+</body>
+</html>
